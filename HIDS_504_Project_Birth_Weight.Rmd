@@ -1,0 +1,615 @@
+---
+title: "HIDS 504 Project 1: Infant Birth Weight for First Time Mothers"
+author: "Joelle, Junaid, Nelson"
+date: "2022-10-18"
+output: html_document
+---
+```{r setup, include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(hexbin)
+library(knitr)
+
+opts_chunk$set(echo = FALSE, include=T)
+```
+
+# Overview of dataset
+
+### Background
+  Low birth-weight (LBW) in infants includes babies who are born preterm (at < 37 weeks) or with fetal growth restriction weighing less than 2500 grams at birth. In the United States (US) and other developed countries, the survival rate of LBW infants has improved over the past 3 decades. However, LBW remains a consistent predictor for infant health, morbidity, and possible demise. Infants born prematurely or with fetal growth restriction are at higher risk for short-term and long-term health morbidities including chronic medical conditions, such as diabetes, hypertension, and heart disease. Associated risk factors for LBW in infants have been noted across maternal populations in the United States including demographic background, socio-economic status, as well as mental and physical health (Goldenberg & Culhane, 2007). Knowing and understanding these risk factors as they are significantly associated with LBW infants may be useful for facilitating interventions and prevention measures to improve pregnancy outcomes. In this exploratory analysis of US birth data gathered from the Centers for Disease Control and Prevention (CDC) in 2018, we explore the relationships between several variables similar to factors shown to affect birth weight in infants against newborn weights reported by the CDC (CDC, 2018).
+
+   An overview of current literature regarding prevalent risk factors for low birth weight in infants revealed maternal demographics, educational background, overall maternal health status and morbidities, prenatal visit frequency, intrauterine infection inducing preterm labor, and smoking history or exposure had a significant impact on pregnancy outcomes and fetal growth (Goldenberg & Culhane, 2007). Especially in the United States, it is observed that African American women, mothers with less education or low socio-economic status have twice the preterm birth rate and higher rates of growth restriction than other maternal populations. According to a cohort study of US births published in 2021, fetal smoking exposure adversely affected fetal growth reflected by lower birth weights in the smoking-exposed population versus non-smoking-exposed newborn population. Additionally, in a prospective hospital based study, researchers observed a high incidence (618 out of 1014 babies) of infants born weighing < 2500 grams in younger mothers age 19-25 and parity zero (having had no children prior).
+   
+  Knowing this, in our analysis, we chose to consider the data points collected for first-time pregnant mothers in the United States. In this population, we explored if maternal demographics and health status have an impact on infant birth weight. Key variables for our model were chosen based on relevance as seen in current literature and narrowed down excluding those with missing or inappropriate data points, variables that showed high correlation possibly impacting our model results, and categories that did not relate to our chosen population of first-time mothers. The 15 variables chosen include, maternal body mass index (BMI), pregnancy weight gain (WTGAIN), maternal smoking status (CIG_0), interval since last pregnancy as (ILP_R) measured in months, maternal age (MAGER), maternal education (MEDUC), maternal race and hispanic origin (MRAVE6, MHISPX), maternal infection occurrence (NO_INFEC), maternal morbidity and risk assessment (NO_MMORB, NO_RISKS), prenatal visits (PREVIS) and the month prenatal care began (PRECARE), and infant birth weight and sex (DBWT, SEX). It was noted that paternal demographics, education, and health status as well as previous pregnancies may also have an impact on infant birth weight, however, we chose to narrow down our population for the purpose of this analysis to just include data for first-time mothers.
+  
+  According to the CDC, infants falling within the 5th and 90th average growth rate percentile typically weigh between 2527 grams and 4172 grams. Additionally, the CDC reported mothers should gain 25-35 pounds during pregnancy if they have a normal BMI between 18.5 and 24.9. Mothers who are underweight (BMI less than 18.5) should gain 28-40 pounds and overweight (BMI 25.0-29.9) mothers should gain 15-25 pounds during pregnancy. For anticipated uncomplicated first pregnancies, mothers have prenatal visits every 4 weeks until 28 weeks, every 2 weeks until 36 weeks, and weekly until delivery (CDC, 2022).
+  
+  Potential confounding variables in our dataset may include maternal mental health status and socioeconomic status. Mental health status of new mothers may result in better or poorer choices throughout pregnancy, thus affecting fetal growth and development. Poor mental health or a negative perspective regarding the current pregnancy may result in less prenatal visits attended due to denial, anxieties, or maternal depression which may delay appropriate and necessary care for both mom and fetus ultimately affecting pregnancy outcomes. Furthermore, lower socioeconomic status may influence a mother’s resources for proper nutrition, basic needs, and healthcare resulting in unhealthy fluctuations in maternal weight gain due to insufficient nutrition or making mothers more prone to morbidities and risk factors associated with low birth weight in infants as discussed above.   
+
+### Load dataset
+
+```{r load_data}
+births = read.csv("code/data/US_births(2018).csv")
+```
+
+Base dataset has `r dim(births)[1]` rows (births) and `r dim(births)[2]` columns (variables).
+
+### Key variables
+
+Based on our background research and the area of interest we have chosen to examine,
+we have chosen to look more closely at the following variables:
+* Mother's pre-pregnancy BMI
+* Number of daily cigarettes in 3 months before pregnancy
+* Birth weight (in grams): our outcome variable
+* Interval since last pregnancy: used to filter data set to only first-time mothers
+* Mother's age (in years)
+* Mother's education
+* Mother's hispanic origin
+* Mother's race
+* Infections reported during pregnancy (includes gonorrhea, syphillis, chlamydia,
+hepatitis B, and hepatitis C)
+* Maternal morbidities reported during pregnancy (includes maternal transfusion, 
+third or fourth degree perineal laceration, ruptured uterus, unplanned 
+hysterectomy, and admission to intensive care unit)
+* Risk factors reported during pregnancy (includes diabetes, hypertension, previous
+preterm birth, other previous poor pregnancy outcome, pregnancy from infertility
+treatment, and previous cesarean delivery)
+* Month prenatal care began
+* Number of prenatal visits
+* Sex of the infant
+* Weight gain during pregnancy (in pounds)
+
+
+### Variables of interest
+
+```{r}
+which_vars <- c(
+  "BMI",
+  "CIG_0",
+  "DBWT",
+  "ILP_R",
+  "MAGER",
+  "MEDUC",
+  "MHISPX",
+  "MRAVE6",
+  "NO_INFEC",
+  "NO_MMORB",
+  "NO_RISKS",
+  "PRECARE",
+  "PREVIS",
+  "SEX",
+  "WTGAIN"
+)
+
+births_subset <- births[which_vars]
+kable(head(births_subset))
+```
+# Cleaning the Data
+
+### Renaming variables of interest
+
+This is done to make the names more descriptive and easier to read.
+```{r}
+# renaming vars we're using
+new_col_names <- c(
+  "mat_bmi_pre",
+  "mat_daily_cig_pre",
+  "birth_weight_g",
+  "months_from_last_preg",
+  "mat_age",
+  "mat_education",
+  "mat_hisp",
+  "mat_race",
+  "no_infections",
+  "no_mat_morbidity",
+  "no_risk_factors",
+  "month_prenatal_care_began",
+  "num_prenatal_visits",
+  "sex",
+  "mat_weight_gain_lb"
+)
+
+colnames(births_subset) <- new_col_names
+kable(head(births_subset))
+```
+
+### Checking for missing values
+
+Our dataset coded missing values as 9, 99, 999, and 9999 for several columns,
+so we need to recode them as NA. Then, we will drop rows with missing values
+for any of our variables of interest.
+```{r recode_na}
+# recode mat_bmi_pre_preg from 99.9 to NA
+births_subset$mat_bmi_pre[births_subset$mat_bmi_pre == 99.9] <- NA
+
+# recode mat_cig from 99 to NA
+births_subset$mat_daily_cig_pre[births_subset$mat_daily_cig_pre == 99] <- NA
+
+# recode birth_weight_g from 9999 to NA
+births_subset$birth_weight_g[births_subset$birth_weight_g == 9999] <- NA
+
+# recode months_from_last_preg from 999 to NA
+births_subset$months_from_last_preg[
+  births_subset$months_from_last_preg == 999] <- NA
+
+# recode mat_education from 9 to NA
+births_subset$mat_education[births_subset$mat_education == 9] <- NA
+
+# recode mat_hisp from 9 to NA
+births_subset$mat_hisp[births_subset$mat_hisp == 9] <- NA
+
+# recode mat_race from 9 to NA
+births_subset$mat_race[births_subset$mat_race == 9] <- NA
+
+# recode no_infections from 9 to NA
+births_subset$no_infections[births_subset$no_infections == 9] <- NA
+
+# recode no_mat_morbidity from 9 to NA
+births_subset$no_mat_morbidity[births_subset$no_mat_morbidity == 9] <- NA
+
+# recode no_risk_factors from 9 to NA
+births_subset$no_risk_factors[births_subset$no_risk_factors == 9] <- NA
+
+# recode month_prenatal_care_began from 99 to NA
+births_subset$month_prenatal_care_began[
+  births_subset$month_prenatal_care_began == 99] <- NA
+
+# recode num_prenatal_visits from 99 to NA
+births_subset$num_prenatal_visits[
+  births_subset$num_prenatal_visits == 99] <- NA
+
+# recode mat_weight_gain_lb from 99 to NA
+births_subset$mat_weight_gain_lb[
+  births_subset$mat_weight_gain_lb == 99] <- NA
+```
+
+```{r missing_val}
+kable(colSums(is.na(births_subset)))
+```
+
+```{r}
+# remove rows with any NAs in subset
+births_no_na <- births_subset[complete.cases(births_subset), ]
+
+kable(colSums(is.na(births_no_na)))
+```
+Our dataset is now free of missing values.
+
+### Recoding categorical vars
+
+Here we re-code the categorical variables in our dataset so that they are factor
+variables in R and their values are descriptive.
+```{r, echo=T}
+# re-coding mat_education
+births_no_na$mat_education <- as.factor(births_no_na$mat_education)
+births_no_na$mat_education <- recode_factor(
+  births_no_na$mat_education,
+  "1" = "8th grade or less",
+  "2" = "9th through 12th grade",
+  "3" = "High school graduate or GED",
+  "4" = "Some college, no degree",
+  "5" = "Associate degree",
+  "6" = "Bachelor's degree",
+  "7" = "Master's degree",
+  "8" = "Doctorate or Professional degree",
+  .ordered=T
+)
+```
+
+```{r, echo=T}
+# re-coding mat_hisp
+births_no_na$mat_hisp <- ifelse(births_no_na$mat_hisp == 0, "Non-Hispanic", "Hispanic")
+
+births_no_na$mat_hisp <- as.factor(births_no_na$mat_hisp)
+```
+
+```{r, echo=T}
+# re-coding no_infections, no_mat_morbidity, no_risk_factors
+births_no_na$no_infections <- as.factor(births_no_na$no_infections)
+births_no_na$no_infections <- recode_factor(
+  births_no_na$no_mat_morbidity, 
+  "1" = "No Infections Reported",
+  "0" = "Infections Reported"
+)
+
+births_no_na$no_mat_morbidity <- as.factor(births_no_na$no_mat_morbidity)
+births_no_na$no_mat_morbidity <- recode_factor(
+  births_no_na$no_mat_morbidity, 
+  "1" = "No Maternal Morbidity Reported",
+  "0" = "Maternal Morbidity Reported"
+)
+
+births_no_na$no_risk_factors <- as.factor(births_no_na$no_risk_factors)
+births_no_na$no_risk_factors <- recode_factor(
+  births_no_na$no_risk_factors, 
+  "1" = "No Risk Factors Reported",
+  "0" = "Risk Factors Reported"
+)
+```
+
+```{r, echo=T}
+# converting sex to factor
+births_no_na$sex <- as.factor(births_no_na$sex)
+births_no_na$sex <- recode_factor(
+  births_no_na$sex, 
+  "M" = "Male",
+  "F" = "Female"
+)
+```
+
+### Converting maternal race to dummy variables
+
+We separate maternal race into dummy variables. This is done so that we can use
+race as a binary predictor variable since it is an unordered, categorical variable.
+```{r, echo=T}
+births_no_na$mat_race_white <- as.factor(ifelse(births_no_na$mat_race == 1, 1, 0))
+births_no_na$mat_race_black <- as.factor(ifelse(births_no_na$mat_race == 2, 1, 0))
+births_no_na$mat_race_aian <- as.factor(ifelse(births_no_na$mat_race == 3, 1, 0))
+births_no_na$mat_race_asian <- as.factor(ifelse(births_no_na$mat_race == 4, 1, 0))
+births_no_na$mat_race_nhopi <- as.factor(ifelse(births_no_na$mat_race == 5, 1, 0))
+births_no_na$mat_race_multiple <- as.factor(ifelse(births_no_na$mat_race == 6, 1, 0))
+```
+
+### Filter for only first pregnancies
+
+Now, we finally subset our data so that it includes our group of interest,
+births for first-time mothers.
+```{r, echo=T}
+# select first pregnancies
+births_clean <- births_no_na[births_no_na$months_from_last_preg == 888, ]
+
+# drop months_from_last_preg
+births_clean <- subset(births_clean, select = -c(months_from_last_preg))
+```
+
+Our clean dataset has `r dim(births_clean)[1]` rows and `r dim(births_clean)[2]` columns.
+
+```{r}
+kable(head(births_clean))
+```
+
+
+### Saving Cleaned Dataset
+
+Output our clean dataset as a CSV.
+```{r}
+write.csv(births_clean, "code/data/births_clean.csv", row.names=F)
+```
+
+# Exploratory Data Analysis
+
+Here we explore some summary statistics and plot our variables of interest so
+that we get a better idea of what the data looks like.
+
+### Checking normality of birth weight
+
+```{r table_birth_weight_g}
+summary(births_clean$birth_weight_g)
+names(births_clean)
+```
+
+```{r hist_birth_weight_g}
+BINWIDTH <- 100
+
+ggplot(births_clean, aes(birth_weight_g)) +
+  geom_histogram(binwidth = BINWIDTH, fill="dark blue") +
+  geom_density(aes(y = BINWIDTH * ..count..), color="red") +
+  xlab("Birth Weight (grams)") +
+  ylab("Count") +
+  ggtitle("Birth Weight (grams)") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Since birth weight already appears to follow a normal distribution, we don't 
+need to perform a log2 transformation. The median birth weight is 3265g.
+
+##### Mother's BMI Pre-Pregnancy
+
+```{r table_mat_bmi_pre}
+summary(births_clean$mat_bmi_pre)
+```
+
+```{r birth_weight_mat_bmi_pre}
+ggplot(births_clean, aes(x = mat_bmi_pre, y = birth_weight_g)) + 
+  geom_hex(bins=60) +
+  geom_smooth(method="lm", color="green") +
+  xlab("Mother's BMI Pre-Pregnancy") +
+  ylab("Birth Weight (grams)") +
+  ggtitle("Birth Weight by Mother's Pre-Pregnancy BMI") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+The median BMI of first-time mother's pre-pregnancy is 24.8. There appears to be
+a slight positive correlation between a mother's pre-pregnancy BMI and infant
+birth weight.
+
+##### Mother's Daily Cigarette Use Pre-Pregnancy
+
+```{r table_mat_daily_cig_pre}
+summary(births_clean$mat_daily_cig_pre)
+```
+
+
+```{r hex_mat_daily_cig_pre}
+ggplot(births_clean, aes(x = mat_daily_cig_pre, y = birth_weight_g)) + 
+  geom_hex(bins=60) +
+  geom_smooth(method="lm", color="green") +
+  xlab("Mother's Daily Cigarette's Pre-Pregnancy") +
+  ylab("Birth Weight (grams)") +
+  ggtitle("Birth Weight by Mother's Pre-Pregnancy Cigarettes") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+The median daily cigarettes consumed for mothers pre-pregnancy was 0.
+There appears to be a slight negative correlation between a mother's 
+pre-pregnancy cigarette use and infant birth weight.
+
+##### Mother's Age
+
+```{r table_mat_age}
+summary(births_clean$mat_age)
+```
+
+```{r hex_mat_age}
+ggplot(births_clean, aes(x = mat_age, y = birth_weight_g)) + 
+  geom_hex(bins=30) +
+  geom_smooth(method="lm", color="green") +
+  xlab("Mother's Age (years)") +
+  ylab("Birth Weight (grams)") +
+  ggtitle("Birth Weight by Mother's Age") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Median age for the first-time mothers in our dataset was 26 years old. Ages 
+ranged from 12 to 50 years old. There doesn't appear to be much, if any, 
+correlation between maternal age and infant birth weight.
+
+##### Mother's Education
+
+```{r table_mat_education}
+tapply(births_clean$birth_weight_g, births_clean$mat_education, summary)
+```
+
+```{r violin_mat_education}
+ggplot(births_clean, aes(x=mat_education, y=birth_weight_g, fill=mat_education)) + 
+  geom_violin() +
+  geom_boxplot(color = "grey", alpha = 0.2, width = 0.2, outlier.shape = NA, show.legend = F) +
+  xlab("Mother's Education") +
+  ylab("Birth Weight (grams)") +
+  ggtitle("Birth Weight by Mother's Education") +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(), 
+        legend.title = element_blank(), plot.title = element_text(hjust = 0.5))
+```
+
+Mother's who had obtained a bachelor's degree had the highest median infant 
+birth weight at 3317g. The lowest was for those who had completed 9th-12th 
+grade at 3180g. Overall the values between education groups appear to be similar
+and they appear to follow similar distributions.
+
+##### Mother's Hispanic Origin
+
+```{r table_mat_hisp}
+tapply(births_clean$birth_weight_g, births_clean$mat_hisp, summary)
+```
+
+```{r violin_mat_hisp}
+ggplot(births_clean, aes(x=mat_hisp, y=birth_weight_g, fill=mat_hisp)) + 
+  geom_violin(show.legend = F) +
+  geom_boxplot(color = "black", alpha = 0.2, width = 0.2, outlier.shape=NA, show.legend = F) +
+  xlab("Mother's Hispanic Origin") +
+  ylab("Birth Weight (grams)") +
+  ggtitle("Birth Weight by Mother's Hispanic Origin") +
+  theme(legend.title = element_blank(), plot.title = element_text(hjust = 0.5))
+```
+
+The median infant birth weight for non-hispanic mothers (3274g) is slightly 
+higher than that for hispanic mothers (3250g). They appear to follow similar
+distributions.
+
+##### Mother's Race
+
+```{r table_mat_race}
+tapply(births_clean$birth_weight_g, births_clean$mat_race, summary)
+```
+
+```{r violin_mat_race}
+ggplot(births_clean, aes(x=as.factor(mat_race), y=birth_weight_g, fill=as.factor(mat_race))) + 
+  geom_violin() +
+  geom_boxplot(color = "black", alpha = 0.2, width = 0.2, outlier.shape=NA, show.legend = F) +
+  xlab("Mother's Race") +
+  ylab("Birth Weight (grams)") +
+  ggtitle("Birth Weight by Mother's Race") +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(), 
+        legend.title = element_blank(), plot.title = element_text(hjust = 0.5)) +
+  scale_fill_discrete(labels = c("White", "Black", "AIAN", "Asian", "NHOPI", "Multiple"))
+```
+
+White and American Indian/Alaska Native mothers had the highest median infant
+birth weights at 3310g. Black mothers had the lowest at 3118g. 
+
+##### Mother's Reported Infections
+
+```{r table_no_infections}
+tapply(births_clean$birth_weight_g, births_clean$no_infections, summary)
+```
+
+```{r violin_no_infections}
+ggplot(births_clean, aes(x=no_infections, y=birth_weight_g, fill=no_infections)) + 
+  geom_violin(show.legend = F) +
+  geom_boxplot(color = "black", alpha = 0.2, width = 0.2, outlier.shape=NA, show.legend = F) +
+  xlab("Infections") +
+  ylab("Birth Weight (grams)") +
+  ggtitle("Birth Weight by Infections Reported") +
+  theme(legend.title = element_blank(), plot.title = element_text(hjust = 0.5))
+```
+
+Median birth weights for mothers who reported infections during their pregnancy
+were higher at 3420g than those who did not at 3260g.
+
+##### Mother's Reported Morbidities
+
+```{r table_no_mat_morbidity}
+tapply(births_clean$birth_weight_g, births_clean$no_mat_morbidity, summary)
+```
+
+```{r violin_no_mat_morbidity}
+ggplot(births_clean, aes(x=no_mat_morbidity, y=birth_weight_g, fill=no_mat_morbidity)) + 
+  geom_violin(show.legend = F) +
+  geom_boxplot(color = "black", alpha = 0.2, width = 0.2, outlier.shape=NA, show.legend = F) +
+  xlab("Maternal Morbidity") +
+  ylab("Birth Weight (grams)") +
+  ggtitle("Birth Weight by Maternal Morbidity Reported") +
+  theme(legend.title = element_blank(), plot.title = element_text(hjust = 0.5))
+```
+
+Median birth weights for mothers who reported morbidity during their pregnancy
+were higher at 3420g than those who did not at 3260g.
+
+##### Mother's Reported Risk Factors
+
+```{r table_no_risk_factors}
+tapply(births_clean$birth_weight_g, births_clean$no_risk_factors, summary)
+```
+
+```{r violin_no_risk_factors}
+ggplot(births_clean, aes(x=no_risk_factors, y=birth_weight_g, fill=no_risk_factors)) + 
+  geom_violin(show.legend = F) +
+  geom_boxplot(color = "black", alpha = 0.2, width = 0.2, outlier.shape=NA, show.legend = F) +
+  xlab("Risk Factors") +
+  ylab("Birth Weight (grams)") +
+  ggtitle("Birth Weight by Risk Factors Reported") +
+  theme(legend.title = element_blank(), plot.title = element_text(hjust = 0.5))
+```
+
+Median birth weights for mothers who reported risk factors during their pregnancy
+were lower at 3160g than those who did not at 3289g.
+
+##### Month Prenatal Care Began
+
+```{r table_month_prenatal_care_began}
+summary(births_clean$month_prenatal_care_began)
+```
+
+```{r hex_month_prenatal_care_began}
+ggplot(births_clean, aes(x = month_prenatal_care_began, y = birth_weight_g)) + 
+  geom_hex(bins=30) +
+  geom_smooth(method="lm", color="green") +
+  scale_x_continuous(n.breaks=11) +
+  xlab("Month of Pregnancy Prenatal Care Began") +
+  ylab("Birth Weight (grams)") +
+  ggtitle("Birth Weight by Month Prenatal Care Began") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Most mothers began prenatal care in month 2 or 3 of their pregnancy. There
+doesn't appear to be much correlation between the month care began and 
+infant birth weight.
+
+##### Number of Prenatal Visits
+
+```{r table_num_prenatal_visits}
+summary(births_clean$num_prenatal_visits)
+```
+
+```{r hex_num_prenatal_visits}
+ggplot(births_clean, aes(x = num_prenatal_visits, y = birth_weight_g)) + 
+  geom_hex(bins=60) +
+  geom_smooth(method="lm", color="green") +
+  xlab("Number of Prenatal Visits") +
+  ylab("Birth Weight (grams)") +
+  ggtitle("Birth Weight by Number of Prenatal Visits") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+The median number of prenatal visits was  12. The number of prenatal visits 
+appears to be positively correlated with birth weight.
+
+##### Sex
+
+```{r table_sex}
+tapply(births_clean$birth_weight_g, births_clean$sex, summary)
+```
+
+```{r violin_sex}
+ggplot(births_clean, aes(x=sex, y=birth_weight_g, fill=sex)) + 
+  geom_violin(show.legend = F) +
+  geom_boxplot(color = "black", alpha = 0.2, width = 0.2, outlier.shape=NA, show.legend = F) +
+  xlab("Sex") +
+  ylab("Birth Weight (grams)") +
+  ggtitle("Birth Weight by Sex") +
+  theme(legend.title = element_blank(), plot.title = element_text(hjust = 0.5))
+```
+
+Male infant birth weight has a median of 3320g, slightly higher than that of 
+female infants (3212g). Overall they follow similar distributions.
+
+##### Mother's Weight Gain During Pregnancy
+
+```{r birth_weight_mat_weight_gain_lb}
+summary(births_clean$mat_weight_gain_lb)
+```
+
+```{r hex_mat_weight_gain_lb, echo=F}
+ggplot(births_clean, aes(x = mat_weight_gain_lb, y = birth_weight_g)) + 
+  geom_hex() +
+  geom_smooth(method="lm", color="green") +
+  xlab("Mother's Weight Gain During Pregnancy") +
+  ylab("Birth Weight (grams)") +
+  ggtitle("Birth Weight by Mother's Weight Gain During Pregnancy") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+The average first-time mother in our dataset gained around 31 lbs over their 
+pregnancy. Mother's weight gain appears to be positively correlated with 
+the infant's birth weight.
+
+# Hypothesis testing
+
+### Explanation of hypothesis & parameters
+
+Null hypothesis: There is no relationship between the X variables we examined
+and the birth weight of the infant.
+
+### Explanation of model (multiple linear regression)
+
+### Running the test
+
+```{r}
+which_vars_x<- new_col_names[!new_col_names %in% c("birth_weight_g")]
+x_vars_str = paste(which_vars_x, collapse = " + ")
+form_str = paste("birth_weight_g ~ ", x_vars_str, sep="")
+form = as.formula(form_str)
+```
+
+```{r}
+lm(formula=form, data = births_no_na)
+```
+```{r}
+summary(lm(formula=form, data = births_no_na))
+```
+
+### Results/Conclusions Interpretation
+
+
+# Sources
+
+United States, Department of Health and Human Services, Centers for Disease Control and Prevention. “User Guide to the 2018 Natality Public Use File”. Centers for Disease Control and Prevention, 2018.
+
+United States, Department of Health and Human Services, Centers for Disease Control and Prevention. “Weight Gain during Pregnancy.” Centers for Disease Control and Prevention, Centers for Disease Control and Prevention, 13 June 2022, https://www.cdc.gov/reproductivehealth/maternalinfanthealth/pregnancy-weight-gain.htm.
+
+Xu, Richard et al. “DNA methylation mediates the effect of maternal smoking on offspring birthweight: a birth cohort study of multi-ethnic US mother-newborn pairs.” Clinical epigenetics vol. 13,1 47. 4 Mar. 2021, doi:10.1186/s13148-021-01032-6
+ 
+Robert L Goldenberg, Jennifer F Culhane, Low birth weight in the United States, The American Journal of Clinical Nutrition, Volume 85, Issue 2, February 2007, Pages 584S–590S, https://doi.org/10.1093/ajcn/85.2.584S
+ 
+Metgud, Chandra S et al. “Factors affecting birth weight of a newborn--a community based study in rural Karnataka, India.” PloS one vol. 7,7 (2012): e40040. doi:10.1371/journal.pone.0040040
+ 
+Raman, Ts Raghu et al. “Low Birth Weight Babies: Incidence and Risk Factors” Medical journal, Armed Forces India vol. 54,3 (1998): 191-195. doi:10.1016/S0377-1237(17)30539-7
+
+Carter, E B et al. “Number of prenatal visits and pregnancy outcomes in low-risk women.” Journal of perinatology : official journal of the California Perinatal Association vol. 36,3 (2016): 178-81. doi:10.1038/jp.2015.183
+
+```{r}
+sessionInfo()
+```
+
+
+

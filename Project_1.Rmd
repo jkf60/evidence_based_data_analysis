@@ -1,0 +1,364 @@
+---
+title: "Project 1"
+author: "Joelle, Junaid, Nelson"
+date: "2022-10-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, include=TRUE, fig.path="figures/")
+
+library(ggplot2)
+```
+
+# Overview of dataset
+
+### Background
+
+
+
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3390317/
+- mean birth weight: 2.6kg (range: [1.2kg, 3.8kg])
+- significant risk factors: maternal education, smoking exposure, age at first
+  pregnancy, birth interval, previous history of low birth weight baby, weight
+  gain, maternal weight at last week of gestation, pregnancy induced hypertension,
+  high risk pregnancy, late antenatal registration
+  
+https://academic.oup.com/ajcn/article/85/2/584S/4649824
+- income, race, ethnicity, infection, maternal BMI
+
+https://www.jkscience.org/archive/Volume81/epidem.pdf
+- avg bw: 2.67 +- 0.42kg
+- antenatal care, parity, inter-pregnancy interval, gestational weight, OB history
+
+https://www.hindawi.com/journals/jp/2013/172395/
+- avg bw 2006: 2950.8g
+- avg bw 2010: 2937.5g
+- # of prev. preg., smoking, gender, mat. age, mat. height, weight gain during
+  preg., BMI, use of in vitro, induction of labor, gestational duration
+
+http://library.isical.ac.in:8080/jspui/bitstream/10263/2925/1/Binder1.pdf
+- infant sex, mat. age, mat. edu., mat. ethnicity, pat. income, mat. nutrition,
+  antenatal visits, 
+- Low BW defined by WHO as < 2500g (maybe something to mention in background, 
+  although probably not part of our actual analysis, can talk about consequences
+  of low bw for infants?)
+
+### Load dataset
+
+```{r}
+births = read.csv("code/US_births(2018).csv")
+```
+
+# Key variables
+
+### Variables key 
+#### (probably just need this for the vars we're keeping, just including the whole
+#### thing for now as we choose - my initial thoughts of what to keep have a +
+#### and what to drop have a - , outcome has +++:) 
+-ATTEND:Attendant at birth
+  1 Doctor of Medicine (MD)
+  2 Doctor of Osteopathy (DO)
+  3 Certified Nurse Midwife (CNM)
+  4 Other Midwife
+  5 Other
+  9 Unknown or not stated)
+-BFACIL: Birth Place
+  1 Hospital
+  2 Freestanding Birth Center
+  3 Home (intended)
+  4 Home (not intended)
+  5 Home (unknown if intended)
+  6 Clinic / Doctor’s Office
+  7 Other
+  9 Unknown
++BMI: Body Mass Index
+  13.0-69.9 Body Mass Index
+  99.9 Unknown or not stated
++CIG_0: Cigarettes Before Pregnancy
+  00-97 Number of cigarettes daily
+  98 98 or more cigarettes daily
+  99 Unknown or not stated
++++DBWT: Birth Weight – Detail in Grams (Edited)
+  0227-8165 Number of grams
+  9999 Not stated birth weight
+-DLMP_MM: Last Normal Menses Month
+  01 January
+  02 February
+  03 March
+  04 April
+  05 May
+  06 June
+  07 July
+  08 August
+  09 September
+  10 October
+  11 November
+  12 December
+  99 Unknown or not stated
+-DLMP_YY: Last Normal Menses Year
+  nnnn Year of last normal menses
+  9999 Unknown or not stated
+  (maybe use M/Y to calc. time since last normal menses? or maybe not relevant, idk)
+-DMAR: Marital Status
+  1 Married
+  2 Unmarried
+-DOB_MM: Birth Month
+-DOB_TT: Time of Birth
+  0000-2359 Time of Birth
+  9999 Not Stated
+-DOB_WK: Birth Day of Week
+  1 Sunday to 7 Saturday
+-DOB_YY: Year of birth (2018?)
+-DWgt_R: Delivery Weight Recode
+  100-400 Weight in pounds
+  999 Unknown or not stated
+-FAGECOMB: Father's Combined Age
+  09-98 Father's combined age in years
+  99 Unknown or not stated
++FEDUC: Father's Education
++FHISPX: Father's Hispanic Origin
+-FRACE15: Father's Race 
+  (15 options)
+-FRACE31: Father's Race
+  31 options + 99 for unknown/not stated
++FRACE6: Father's Race
+  1 White (only)
+  2 Black (only)
+  3 AIAN (only)
+  4 Asian (only)
+  5 NHOPI (only)
+  6 More than one race
+  9 Unknown or Not Stated
+-ILLB_R: Interval Since Last Live Birth
+  000-003 Plural delivery
+  004-300 Months since last live birth
+  888 Not applicable / 1st live birth
+  999 Unknown or not stated
+-ILOP_R: Interval Since Last Other Pregnancy
+  000-003 Plural delivery
+  004-300 Months since last live birth
+  888 Not applicable / 1st natality event
+  999 Unknown or not stated
++ILP_R: Interval Since Last Pregnancy
+  000-003 Plural delivery
+  004-300 Months since last live birth
+  888 Not applicable / 1st natality event
+  999 Unknown or not stated
+-IMP_SEX: Imputed Sex
+  Blank Infant Sex not Imputed
+  1 Infant Sex is Imputed
+-IP_GON: Infections Present - Gonorrhea
+  Y Yes
+  N No
+  U Unknown or not stated
+-LD_INDL: Induction of Labor
+  Y Yes
+  N No
+  U Unknown or not stated
++MAGER: Mother's Single Years of Age
+  12 10-12 years
+  n = 12-49 n years
+  50 50 years and over
+-MAGE_IMPFLG: Mother's Age Imputed
+-MAR_IMP: Mother's Marital Status Imputed
+-MBSTATE_REC: Mother's Nativity
+  1 Born in the U.S. (50 US States)
+  2 Born outside the U.S. (includes possessions)
+  3 Unknown or Not Stated
++MEDUC: Mother's Education
++MHISPX: Mother's Hispanic Origin
+-MM_AICU: Admit to Intensive Care
+  Y Yes
+  N No
+  U Unknown or not stated
+-MRACE15: Mother's Race
+-MRACE31: Mother's Race
+-MRACEIMP: Mother's Race Imputed
++MRAVE6: Mother's Race
+-MTRAN: Mother Transferred
+  Y Yes
+  N No
+  U Unknown or not stated  
+-M_Ht_In: Mother's Height in Total Inches
+  30-78 Height in inches
+  99 Unknown or not stated
++NO_INFEC: No Infections Reported
+  1 True
+  0 False
+  9 Not Reported
++NO_MMORB: No Maternal Morbidity Reported
+  1 True
+  0 False
+  9 Not Reported
++NO_RISKS: No Risk Factors Reported
+  1 True
+  0 False
+  9 Not Reported
+-PAY: Payment Source for Delivery
+  1 Medicaid
+  2 Private Insurance
+  3 Self-Pay
+  4 Indian Health Service
+  5 CHAMPUS/TRICARE
+  6 Other Government (Federal, State, Local)
+  8 Other
+  9 Unknown
+-PAY_REC: Payment Recode
+  1 Medicaid
+  2 Private Insurance
+  3 Self Pay
+  4 Other
+  9 Unknown
++PRECARE: Month Prenatal Care Began
+  00 No prenatal care
+  01-10 Month prenatal care began
+  99 Unknown or not stated
++PREVIS: Number of Prenatal Visits
+  00-98 Number of prenatal visits
+  99 Unknown or not stated
++PRIORDEAD: Prior Births Now Dead
+  00-30 Number of children dead from previous live births.
+  99 Unknown or not stated
++PRIORLIVE: Prior Births Now Living
+  00-30 Number of children still living from previous live births.
+  99 Unknown or not stated
++PRIORTERM: Prior Other Terminations
+  00-30 Number other terminations
+  99 Unknown or not stated
++PWgt_R: Pre-pregnancy Weight Recode
+  075-375 Weight in pounds
+  999 Unknown or not stated
+-RDMETH_REC: Delivery Method Recode
+  1 Vaginal (excludes vaginal after previous C-section)
+  2 Vaginal after previous c-section
+  3 Primary C-section
+  4 Repeat C-section
+  5 Vaginal (unknown if previous c-section)
+  6 C-section (unknown if previous c-section)
+  9 Not stated
+-RESTATUS: Residence Status
+-RF_CESAR: Previous Cesarean
+  Y Yes
+  N No
+  U Unknown or not stated
+-RF_CESARN: Number of Previous Cesareans
+  00 None
+  01-30 Number of previous cesareans
+  99 Unknown or not stated
++SEX: Sex of Infant
+  M Male
+  F Female
++WTGAIN: Weight Gain
+  00-97 Weight gain in pounds
+  98 98 pounds and over
+  99 Unknown or not stated
+
+### Variables of interest
+
+```{r}
+vars_keep <- c(
+  "BMI",
+  "CIG_0",
+  "DBWT",
+  "FEDUC",
+  "FHISPX",
+  "FRACE6",
+  "ILP_R",
+  "MAGER",
+  "MEDUC",
+  "MHISPX",
+  "MRAVE6",
+  "NO_INFEC",
+  "NO_MMORB",
+  "NO_RISKS",
+  "PRECARE",
+  "PREVIS",
+  "PRIORDEAD",
+  "PRIORLIVE",
+  "PRIORTERM",
+  "PWgt_R",
+  "SEX",
+  "WTGAIN"
+)
+
+births_subset <- births[vars_keep]
+head(births_subset)
+```
+
+
+
+```{r}
+# renaming vars we're using?
+
+```
+
+# Exploratory data anlysis
+
+### Checking for missing values
+
+```{r missing_val}
+# this doesn't capture everything, they used 99, 999, & 9999 in some cols for NAs
+knitr::kable(colSums(is.na(births)))
+```
+
+### Checking normality
+
+```{r birth_weight_hist}
+BINWIDTH <- 100
+
+ggplot(births, aes(DBWT)) +
+  geom_histogram(binwidth = BINWIDTH) +
+  geom_density(aes(y = BINWIDTH * ..count..), color="red")
+```
+```{r birth_weight_stats}
+summary(births$DBWT)
+```
+
+```{r log_birth_weight_hist}
+ggplot(births, aes(log2(DBWT))) +
+  geom_histogram(aes(y = after_stat(density))) +
+  geom_density(color = "red")
+```
+
+### Tables & plots, etc.
+
+```{r table_1}
+
+```
+
+```{r plot_1}
+
+```
+
+# Hypothesis testing
+
+### Explanation of hypothesis & parameters
+
+### Explanation of model (multiple linear regression)
+
+### Running the test
+
+```{r}
+x_vars = paste(vars_keep, collapse = " + ")
+form_str = paste("DBWT ~ ", x_vars, sep="")
+form = as.formula(form_str)
+```
+
+```{r}
+lm(formula=form, data = births_subset)
+```
+```{r}
+summary(lm(formula=form, data = births_subset))
+```
+
+### Results/Conclusions Interpretation
+
+```{r}
+sessionInfo()
+```
+
+
+
+
+
