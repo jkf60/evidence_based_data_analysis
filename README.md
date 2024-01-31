@@ -1,18 +1,32 @@
-# evidence_based_data_analysis
+# Evidence Based Data Analysis 
 
-Course Description
-The class will focus on key concepts about evidence-based approaches in data science,
-including the analysis of population health datasets and the discussion of important case
-studies. Students will learn important principles for organizing and analyzing data, principles of
-statistical methods and analysis, and concepts and tools for reproducible research, for which
-they will gain hands-on experience with the R programming language. Students will then expand
-their understanding of study design and evidence based medicine, discussing important
-literature in this area and where the field is going regarding innovative designs.
+Overview
 
-Course Learning Objectives
-1. Describe and implement best practices for organizing both data sets and data analyses.
-2. Describe statistical concepts such as exploratory data analysis, hypothesis testing,
-parameter estimation, regression modeling.
-3. Obtain familiarity with the concept of evidence-based medicine and describe traditional
-and novel study designs.
-4. Develop written and oral scientific communication skills.
+This project focuses on analyzing factors influencing infant birth weight in first-time mothers. The study utilizes a dataset from the Centers for Disease Control and Prevention (CDC) from the year 2018, with a specific focus on low birth-weight (LBW) infants.
+
+Goals
+
+1. To identify significant factors affecting infant birth weight.
+2. To understand the relationship between maternal health, behaviors, and infant birth weight.
+Dataset and Methods
+
+Data Source: CDC's 2018 U.S. birth data.
+Variables: 15 key variables were selected, including maternal BMI, smoking status, education, race, and infant's sex.
+Analysis Tools: R programming with libraries like ggplot2, dplyr, and hexbin.
+
+Key Findings
+
+1. The data revealed correlations between maternal factors and birth weight.
+2. Notable relationships include the impact of maternal BMI, smoking status, age, and race on birth weight.
+3. The study also analyzed the timing of prenatal care and its influence on birth weight.
+
+Graphs and Visualizations
+
+1. Histograms and density plots of birth weight distribution.
+2. Hexbin and violin plots to visualize the relationship between maternal factors and birth weight.
+3. Linear models to explore correlations and trends in the data.
+
+Conclusion
+
+The study provides insights into how maternal health and lifestyle factors contribute to infant birth weight, emphasizing the importance of prenatal care and maternal well-being for infant health outcomes.
+
